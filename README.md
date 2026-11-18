@@ -1,14 +1,10 @@
-<img src=".github/icon.png" alt="GuildBanter icon" width="128" align="right">
+<p align="center"><img src=".github/icon.png" alt="GuildBanter icon" width="128"></p>
 
-# GuildBanter
+<h1 align="center">GuildBanter</h1>
 
 A World of Warcraft Classic addon that posts funny messages in guild chat when something happens in your guild: a new member joins, someone leaves, an old friend comes back, or someone reaches level 40 or 60.
 
-```text
-Welcome Zarnok! You chose demons voluntarily. So you chose us voluntarily too. Good taste!
-Grats Elowen, level 40! 100 gold for riding lessons and the mount comes free. Like a phone contract. Enjoy!
-Look who rose from the dead! Brakk is back after 47 days. Welcome back!
-```
+<img src=".github/screenshots/welcome.png" alt="A GuildBanter welcome for a new warlock in guild chat" width="49%"> <img src=".github/screenshots/comeback.png" alt="A GuildBanter welcome back after 12 days in guild chat" width="49%">
 
 ## What it does
 
@@ -40,6 +36,8 @@ The messages are posted in guild chat **by your character**. Turn off anything y
 ## Settings
 
 Open them with `/gb`, or via Esc > Options > AddOns > GuildBanter.
+
+<img src=".github/screenshots/options.png" alt="The GuildBanter settings panel" width="560">
 
 - **Message language:** English (default), Nederlands, Deutsch, Français or Español.
 - **One checkbox per event:** welcome, goodbye, level 40, level 60 and welcome back. All are on by default.
