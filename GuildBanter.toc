@@ -1,0 +1,16 @@
+## Interface: 16001
+## Title: GuildBanter
+## Notes: Funny guild chat messages for new members, departures, comebacks and levels 40 and 60.
+## Notes-deDE: Lustige Gildenchat-Nachrichten für neue Mitglieder, Abschiede, Rückkehrer und Stufe 40 und 60.
+## Notes-frFR: Messages drôles dans le canal de guilde pour les nouveaux membres, les départs, les retours et les niveaux 40 et 60.
+## Notes-esES: Mensajes divertidos en el chat de hermandad para nuevos miembros, despedidas, regresos y los niveles 40 y 60.
+## Notes-esMX: Mensajes divertidos en el chat de hermandad para nuevos miembros, despedidas, regresos y los niveles 40 y 60.
+## Version: 1.4.0
+## SavedVariables: GuildBanterDB
+
+Messages_en.lua
+Messages_nl.lua
+Messages_de.lua
+Messages_fr.lua
+Messages_es.lua
+GuildBanter.lua
