@@ -254,16 +254,22 @@ panel:SetScript("OnShow", refresh)
 local category = Settings.RegisterCanvasLayoutCategory(panel, "GuildBanter")
 Settings.RegisterAddOnCategory(category)
 
--- /gb opent de opties; /gb test hi|bye|back|40|60 [class]: toont lokaal een voorbeeld, zonder iets in guild chat te zetten.
+-- /gb opent de opties; /gb test hi|bye|back|40|60 [class] [naam]: toont lokaal een voorbeeld, opgemaakt als
+-- guild chat, zonder iets naar de guild te sturen. Zonder naam is de ontvanger je eigen personage.
 SLASH_GUILDBANTER1 = "/gb"
 SLASH_GUILDBANTER2 = "/gw" -- oude commando van GuildWelcome blijft werken
 SlashCmdList.GUILDBANTER = function(arg)
     if arg == "" then return Settings.OpenToCategory(category:GetID()) end
-    local kind, class = arg:match("^test%s+(%w+)%s*(%a*)")
+    local kind, class, name = arg:match("^test%s+(%w+)%s*(%a*)%s*(%S*)")
     if not kind then
         print(ui().usage)
         return
     end
-    class = class ~= "" and class:upper() or select(2, UnitClass("player"))
-    print(line(kind:upper(), class, UnitName("player"), 12) or ui().noLines:format(kind, class))
+    local me, myClass = UnitName("player"), select(2, UnitClass("player"))
+    class = class ~= "" and class:upper() or myClass
+    local text = line(kind:upper(), class, name ~= "" and name or me, 12)
+    if not text then return print(ui().noLines:format(kind, class)) end
+    -- ponytail: alleen lokaal in je eigen chatvenster, in de guildkleur, zodat het eruitziet zoals de anderen het zien
+    local guild, author = ChatTypeInfo.GUILD, RAID_CLASS_COLORS[myClass]:WrapTextInColorCode("[" .. me .. "]")
+    DEFAULT_CHAT_FRAME:AddMessage(CHAT_GUILD_GET:format(author) .. text, guild.r, guild.g, guild.b)
 end

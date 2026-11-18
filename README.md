@@ -50,7 +50,7 @@ Open them with `/gb`, or via Esc > Options > AddOns > GuildBanter.
 | Command | What it does |
 |---|---|
 | `/gb` | Opens the settings |
-| `/gb test hi\|bye\|back\|40\|60 [class]` | Shows a sample message in your own chat window only, for example `/gb test 40 warlock` |
+| `/gb test hi\|bye\|back\|40\|60 [class] [name]` | Shows a sample message, styled as guild chat, in your own chat window only. Nothing is sent to the guild. Example: `/gb test 40 warlock Zarnok` |
 
 `/gw` still works as an alias for players coming from GuildWelcome.
 
