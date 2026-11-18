@@ -18,7 +18,7 @@ A World of Warcraft Classic addon that posts funny messages in guild chat when s
 
 - **Five languages:** English, Nederlands, Deutsch, Français and Español. You pick the language yourself, so it can differ from your game client.
 - **No repeats:** every line comes by once before any line is used again.
-- **No double messages:** if several guild members run GuildBanter, each waits a random 1 to 8 seconds. If someone already mentioned the name in guild chat, it stays quiet.
+- **No double messages:** if several guild members run GuildBanter, each waits a random 1 to 8 seconds. Before posting, GuildBanter sends a hidden addon message; if another GuildBanter already posted about the same event, it stays quiet. What players type themselves does not count.
 - **Settings per guild:** language and options are saved per guild, so an alt in another guild can have its own settings.
 
 The messages are posted in guild chat **by your character**. Turn off anything you don't want to say yourself.
@@ -39,15 +39,17 @@ Open them with `/gb`, or via Esc > Options > AddOns > GuildBanter.
 
 <img src=".github/screenshots/options.png" alt="The GuildBanter settings panel" width="560">
 
+- **Enable GuildBanter:** the main switch for this guild, on by default. Turn it off to silence everything without touching the other checkboxes; they are greyed out while it is off.
 - **Message language:** English (default), Nederlands, Deutsch, Français or Español.
-- **One checkbox per event:** welcome, goodbye, level 40, level 60 and welcome back. All are on by default.
-- **Welcome back after an absence of at least:** 1 week, 2 weeks (default), 1 month, 2 months or 3 months.
+- **One checkbox per event,** in the order of a guild member's life: welcome, level 40, level 60, goodbye and welcome back. All are on by default.
+- **After an absence of at least:** sits right under welcome back and sets when someone counts as back: 1 week, 2 weeks (default), 1 month, 2 months or 3 months.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `/gb` | Opens the settings |
+| `/gb off` / `/gb on` | Turns all messages off or back on for this guild in one go, for example during a raid. Same as the "Enable GuildBanter" checkbox at the top of the settings. Your other checkboxes are kept. |
 | `/gb test hi\|bye\|back\|40\|60 [class] [name]` | Shows a sample message, styled as guild chat, in your own chat window only. Nothing is sent to the guild. Example: `/gb test 40 warlock Zarnok` |
 
 `/gw` still works as an alias for players coming from GuildWelcome.
@@ -60,7 +62,7 @@ Open them with `/gb`, or via Esc > Options > AddOns > GuildBanter.
 
 ## Development
 
-`check.lua` validates all five language files against the Dutch structure: the same tables and counts, `{name}` in every chat line, at most 255 characters per message and no em dashes. Run it from the addon folder:
+`check.lua` validates all five language files against the Dutch structure: the same tables and counts, `{name}` in every chat line, at most 255 characters per message and no em dashes. The release workflow runs it before packaging, so a broken language file never reaches CurseForge. Run it yourself from the addon folder:
 
 ```bash
 lua check.lua
