@@ -90,39 +90,34 @@ local function comebackDays()
     return days == 28 and 30 or days -- 4 weken uit 1.2 is nu 1 maand
 end
 
--- Guild chat van anderen in de laatste 90 seconden. Noemt iemand de naam al (een andere GuildBanter,
--- een andere addon of gewoon een speler), dan zwijgen we. 90 s, omdat elke client de roster op een
--- eigen minuut-tik scant en dings dus tot een minuut na elkaar ziet.
+-- Elke GuildBanter meldt vlak voor het posten via een onzichtbaar addonbericht wat hij post ("HI Zarnok").
+-- Hebben we dat in de laatste 90 seconden van een andere GuildBanter gehoord, dan zwijgen we; wat spelers
+-- zelf typen telt niet mee. 90 s, omdat elke client de roster op een eigen minuut-tik scant en dings dus
+-- tot een minuut na elkaar ziet.
+local PREFIX = "GuildBanter"
+C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
 local heard = {}
-local function forget()
-    local cutoff = GetTime() - 90
-    while heard[1] and heard[1].at < cutoff do table.remove(heard, 1) end
+
+local function hear(sender, key)
+    if shortName(sender) ~= UnitName("player") then heard[key] = GetTime() end
 end
 
-local function hear(author, text)
-    if shortName(author) == UnitName("player") then return end
-    forget()
-    heard[#heard + 1] = {at = GetTime(), text = text}
-end
-
-local function mentioned(name)
-    forget()
-    for _, entry in ipairs(heard) do
-        -- ponytail: substring, dus "Al" telt ook in "Also"; hooguit een gemist bericht, nooit een dubbel
-        if entry.text:find(name, 1, true) then return true end
-    end
-    return false
+local function claimed(key)
+    return heard[key] and GetTime() - heard[key] < 90
 end
 
 local function say(kind, class, name, days)
-    if settings()[kind] == false then return end
+    local s = settings()
+    if s.off or s[kind] == false then return end
     -- ponytail: willekeurige wachttijd van 1 tot 8 s spreidt gelijktijdige GuildBanters; posten twee binnen
-    -- dezelfde chat-roundtrip (circa 0,5 s), dan komen er toch twee. Sluitend wordt het pas met een
-    -- leider-keuze via SendAddonMessage.
+    -- dezelfde roundtrip (circa 0,5 s), dan komen er toch twee. Sluitend wordt het pas met een leider-keuze.
     C_Timer.After(1 + math.random() * 7, function()
-        if mentioned(name) then return end
+        local key = kind .. " " .. name
+        if claimed(key) then return end
         local text = line(kind, class, name, days)
-        if text then SendChatMessage(text, "GUILD") end
+        if not text then return end
+        C_ChatInfo.SendAddonMessage(PREFIX, key, "GUILD")
+        SendChatMessage(text, "GUILD")
     end)
 end
 
@@ -155,10 +150,14 @@ end
 
 frame:RegisterEvent("CHAT_MSG_SYSTEM")
 frame:RegisterEvent("GUILD_ROSTER_UPDATE")
-frame:RegisterEvent("CHAT_MSG_GUILD")
-frame:SetScript("OnEvent", function(_, event, msg, author)
+frame:RegisterEvent("CHAT_MSG_ADDON")
+-- Bij CHAT_MSG_ADDON is msg de prefix; bij CHAT_MSG_SYSTEM is alleen msg in gebruik.
+frame:SetScript("OnEvent", function(_, event, msg, text, channel, sender)
     if event == "GUILD_ROSTER_UPDATE" then return scanRoster() end
-    if event == "CHAT_MSG_GUILD" then return hear(author, msg) end
+    if event == "CHAT_MSG_ADDON" then
+        if msg == PREFIX and channel == "GUILD" then hear(sender, text) end
+        return
+    end
 
     local name = msg:match(joinPattern)
     if name then
@@ -187,10 +186,11 @@ end)
 -- De server meldt levels niet uit zichzelf; elke minuut de roster verversen houdt de mijlpalen actueel.
 C_Timer.NewTicker(60, requestRoster)
 
--- Optiescherm (Esc > Options > AddOns > GuildBanter): taal, per soort bericht een vinkje, en de comeback-periode.
+-- Optiescherm (Esc > Options > AddOns > GuildBanter): hoofdschakelaar, taal, per soort bericht een vinkje
+-- (in de volgorde van een guildleven) en, ingesprongen onder "welkom terug", de comeback-periode.
 -- Alle labels volgen de gekozen taal; refresh() zet ze opnieuw bij openen en na een taalwissel.
 local panel = CreateFrame("Frame")
-local labels, dropdowns = {}, {}
+local labels, dropdowns, dependents = {}, {}, {}
 
 local function setOption(key, value)
     settings()[key] = value
@@ -204,20 +204,34 @@ title:SetText("GuildBanter")
 local subtitle = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
 
+-- Grijs wat niet meedoet: alles als GuildBanter uit staat, de periode ook als "welkom terug" uit staat.
+local function updateEnabled()
+    for _, d in ipairs(dependents) do
+        local on = d.active()
+        d.widget:SetEnabled(on)
+        d.label:SetFontObject(on and "GameFontHighlight" or "GameFontDisable")
+    end
+end
+
 local function refresh()
     local guild = GetGuildInfo("player")
     subtitle:SetText(guild and ui().guild:format(guild) or ui().noGuild)
     for fontString, key in pairs(labels) do fontString:SetText(ui()[key]) end
     for _, dropdown in ipairs(dropdowns) do dropdown:GenerateMenu() end
+    updateEnabled()
+end
+
+local function dependsOn(widget, label, active)
+    if active then dependents[#dependents + 1] = {widget = widget, label = label, active = active} end
 end
 
 -- items() geeft {waarde, tekst}-paren; een functie, zodat de teksten mee vertalen.
-local function addDropdown(labelKey, y, items, get, set)
+local function addDropdown(labelKey, x, y, items, get, set, active)
     local label = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    label:SetPoint("TOPLEFT", 20, y)
+    label:SetPoint("TOPLEFT", x, y)
     labels[label] = labelKey
     local dropdown = CreateFrame("DropdownButton", nil, panel, "WowStyle1DropdownTemplate")
-    dropdown:SetPoint("TOPLEFT", 20, y - 18)
+    dropdown:SetPoint("TOPLEFT", x, y - 18)
     dropdown:SetWidth(200)
     dropdown:SetupMenu(function(_, root)
         for _, item in ipairs(items()) do
@@ -225,41 +239,62 @@ local function addDropdown(labelKey, y, items, get, set)
         end
     end)
     dropdowns[#dropdowns + 1] = dropdown
+    dependsOn(dropdown, label, active)
 end
 
-addDropdown("language", -70, function() return languages end, language, function(lang)
+local function addCheck(labelKey, y, get, set, active)
+    local check = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+    check:SetPoint("TOPLEFT", 16, y)
+    local label = check:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    label:SetPoint("LEFT", check, "RIGHT", 4, 0)
+    labels[label] = labelKey
+    check:SetScript("OnShow", function(self) self:SetChecked(get()) end)
+    check:SetScript("OnClick", function(self)
+        set(self:GetChecked() and true or false)
+        updateEnabled()
+    end)
+    dependsOn(check, label, active)
+end
+
+local function enabled() return not settings().off end
+
+-- Hoofdschakelaar, dezelfde instelling als /gb on en /gb off.
+addCheck("enabled", -60, enabled, function(on) setOption("off", not on or nil) end)
+
+addDropdown("language", 20, -100, function() return languages end, language, function(lang)
     setOption("language", lang)
     refresh()
 end)
 
-local kinds = {"HI", "BYE", "40", "60", "BACK"}
+local kinds = {"HI", "40", "60", "BYE", "BACK"}
 for i, kind in ipairs(kinds) do
-    local check = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
-    check:SetPoint("TOPLEFT", 16, -100 - i * 30)
-    local label = check:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    label:SetPoint("LEFT", check, "RIGHT", 4, 0)
-    labels[label] = kind
-    check:SetScript("OnShow", function(self) self:SetChecked(settings()[kind] ~= false) end)
-    check:SetScript("OnClick", function(self) setOption(kind, self:GetChecked() and true or false) end)
+    addCheck(kind, -130 - i * 30, function() return settings()[kind] ~= false end, function(on) setOption(kind, on) end, enabled)
 end
 
-addDropdown("comebackDays", -120 - (#kinds + 1) * 30, function()
+addDropdown("comebackDays", 48, -134 - (#kinds + 1) * 30, function()
     local items = {}
     for i, days in ipairs(periods) do items[i] = {days, ui().periods[i]} end
     return items
-end, comebackDays, function(days) setOption("comebackDays", days) end)
+end, comebackDays, function(days) setOption("comebackDays", days) end, function()
+    return enabled() and settings().BACK ~= false
+end)
 
 panel:SetScript("OnShow", refresh)
 
 local category = Settings.RegisterCanvasLayoutCategory(panel, "GuildBanter")
 Settings.RegisterAddOnCategory(category)
 
--- /gb opent de opties; /gb test hi|bye|back|40|60 [class] [naam]: toont lokaal een voorbeeld, opgemaakt als
+-- /gb opent de opties; /gb off en /gb on zetten alles in één keer uit of aan voor deze guild (de vinkjes
+-- blijven bewaard); /gb test hi|bye|back|40|60 [class] [naam]: toont lokaal een voorbeeld, opgemaakt als
 -- guild chat, zonder iets naar de guild te sturen. Zonder naam is de ontvanger je eigen personage.
 SLASH_GUILDBANTER1 = "/gb"
 SLASH_GUILDBANTER2 = "/gw" -- oude commando van GuildWelcome blijft werken
 SlashCmdList.GUILDBANTER = function(arg)
     if arg == "" then return Settings.OpenToCategory(category:GetID()) end
+    if arg == "off" or arg == "on" then
+        setOption("off", arg == "off" or nil)
+        return print(ui()[arg])
+    end
     local kind, class, name = arg:match("^test%s+(%w+)%s*(%a*)%s*(%S*)")
     if not kind then
         print(ui().usage)

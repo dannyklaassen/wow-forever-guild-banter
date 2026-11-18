@@ -476,18 +476,21 @@ local milestones = {
 
 -- Teksten van het optiescherm en de /gb-meldingen.
 local ui = {
+    enabled = "Activar GuildBanter",
     language = "Idioma de los mensajes",
     HI = "Dar la bienvenida a los nuevos miembros",
     BYE = "Despedirse cuando alguien deja la hermandad",
     BACK = "Saludar el regreso tras una larga ausencia",
     ["40"] = "Felicitar al llegar al nivel 40 (primera montura)",
     ["60"] = "Felicitar al llegar al nivel 60 (nivel máximo)",
-    comebackDays = "Saludar el regreso tras una ausencia de al menos",
+    comebackDays = "Tras una ausencia de al menos",
     periods = {"1 semana", "2 semanas", "1 mes", "2 meses", "3 meses"},
-    usage = "GuildBanter: usa /gb (opciones) o /gb test hi|bye|back|40|60 [clase] [nombre], p. ej. /gb test 40 warlock Zarnok",
+    usage = "GuildBanter: usa /gb (opciones), /gb on|off o /gb test hi|bye|back|40|60 [clase] [nombre], p. ej. /gb test 40 warlock Zarnok",
     guild = "Estos ajustes se aplican a todos los personajes de la hermandad \"%s\".",
     noGuild = "No estás en ninguna hermandad, así que GuildBanter no hace nada por ahora.",
     noLines = "GuildBanter: no hay mensajes para %s %s",
+    off = "GuildBanter está desactivado para esta hermandad. Escribe /gb on para volver a activarlo.",
+    on = "GuildBanter vuelve a estar activado para esta hermandad.",
 }
 
 GuildBanterMessages = GuildBanterMessages or {}

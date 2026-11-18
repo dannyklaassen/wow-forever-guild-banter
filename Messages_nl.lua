@@ -476,18 +476,21 @@ local milestones = {
 
 -- Teksten van het optiescherm en de /gb-meldingen.
 local ui = {
+    enabled = "GuildBanter activeren",
     language = "Taal van de berichten",
     HI = "Nieuwe leden welkom heten",
     BYE = "Afscheid nemen als iemand vertrekt",
     BACK = "Leden welkom terug heten na lange afwezigheid",
     ["40"] = "Feliciteren met level 40 (eerste mount)",
     ["60"] = "Feliciteren met level 60 (max level)",
-    comebackDays = "Welkom terug na een afwezigheid van minstens",
+    comebackDays = "Na een afwezigheid van minstens",
     periods = {"1 week", "2 weken", "1 maand", "2 maanden", "3 maanden"},
-    usage = "GuildBanter: gebruik /gb (opties) of /gb test hi|bye|back|40|60 [class] [naam], bv. /gb test 40 warlock Zarnok",
+    usage = "GuildBanter: gebruik /gb (opties), /gb on|off of /gb test hi|bye|back|40|60 [class] [naam], bv. /gb test 40 warlock Zarnok",
     guild = "Deze instellingen gelden voor alle personages in de guild \"%s\".",
     noGuild = "Je zit niet in een guild, dus GuildBanter doet nu niets.",
     noLines = "GuildBanter: geen teksten voor %s %s",
+    off = "GuildBanter staat uit voor deze guild. Typ /gb on om hem weer aan te zetten.",
+    on = "GuildBanter staat weer aan voor deze guild.",
 }
 
 GuildBanterMessages = GuildBanterMessages or {}
