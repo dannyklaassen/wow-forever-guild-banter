@@ -180,8 +180,10 @@ frame:SetScript("OnEvent", function(_, event, msg, text, channel, sender)
     local name = msg:match(joinPattern)
     if name then
         pending[name] = true
-        -- ponytail: korte vertraging zodat de server de roster eerst bijwerkt
+        -- ponytail: korte vertraging zodat de server de roster eerst bijwerkt. GuildRoster() werkt hoogstens
+        -- eens per ~10 s; viel de eerste aanvraag in dat venster (minuut-tik, guildvenster), dan pakt de tweede het op.
         C_Timer.After(2, requestRoster)
+        C_Timer.After(13, requestRoster)
         return
     end
 
