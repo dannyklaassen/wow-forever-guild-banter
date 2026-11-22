@@ -64,25 +64,33 @@ local function linesFor(kind, class)
 end
 
 -- Shuffle-bag per lijst: elke regel komt één keer langs voordat er een herhaling komt.
+-- avoid is het regelnummer dat een andere GuildBanter al postte; geeft het nummer terug, of nil als er
+-- geen andere regel is.
 local bags = {}
-local function pick(lines)
-    local bag = bags[lines]
-    if not bag or #bag == 0 then
-        bag = {}
-        for i = 1, #lines do bag[i] = i end
-        for i = #bag, 2, -1 do
-            local j = math.random(i)
-            bag[i], bag[j] = bag[j], bag[i]
+local function pick(lines, avoid)
+    for _ = 1, 2 do
+        local bag = bags[lines]
+        if not bag or #bag == 0 then
+            bag = {}
+            for i = 1, #lines do bag[i] = i end
+            for i = #bag, 2, -1 do
+                local j = math.random(i)
+                bag[i], bag[j] = bag[j], bag[i]
+            end
+            bags[lines] = bag
         end
-        bags[lines] = bag
+        for i = #bag, 1, -1 do
+            if bag[i] ~= avoid then return table.remove(bag, i) end
+        end
+        bags[lines] = nil -- alleen de vermeden regel zat nog in de zak: nieuwe zak
     end
-    return lines[table.remove(bag)]
 end
 
-local function line(kind, class, name, days)
+local function line(kind, class, name, days, avoid)
     local lines = linesFor(kind, class)
-    if not lines then return nil end
-    return (pick(lines):gsub("{name}", name):gsub("{days}", days or ""))
+    local index = lines and pick(lines, avoid)
+    if not index then return nil end
+    return (lines[index]:gsub("{name}", name):gsub("{days}", days or "")), index
 end
 
 local function comebackDays()
@@ -90,33 +98,43 @@ local function comebackDays()
     return days == 28 and 30 or days -- 4 weken uit 1.2 is nu 1 maand
 end
 
--- Elke GuildBanter meldt vlak voor het posten via een onzichtbaar addonbericht wat hij post ("HI Zarnok").
--- Hebben we dat in de laatste 90 seconden van een andere GuildBanter gehoord, dan zwijgen we; wat spelers
--- zelf typen telt niet mee. 90 s, omdat elke client de roster op een eigen minuut-tik scant en dings dus
--- tot een minuut na elkaar ziet.
+-- Elke GuildBanter meldt vlak voor het posten via een onzichtbaar addonbericht wat hij post, met taal en
+-- regelnummer ("HI Zarnok nl 7"). Per gebeurtenis posten hoogstens twee GuildBanters, en de tweede kiest
+-- een andere regel als hij dezelfde taal heeft. Wat spelers zelf typen telt niet mee. Het venster is 90 s
+-- na het laatst gehoorde bericht, omdat elke client de roster op een eigen minuut-tik scant en dings dus
+-- tot een minuut na elkaar ziet. 1.4.2 stuurt alleen "HI Zarnok": dat telt mee, zonder regelnummer.
 local PREFIX = "GuildBanter"
+local MAX_POSTS = 2
 C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
-local heard = {}
+local heard = {} -- "HI Zarnok" -> {at = GetTime(), count = n, [taal] = regelnummer}
 
-local function hear(sender, key)
-    if shortName(sender) ~= UnitName("player") then heard[key] = GetTime() end
+local function recent(key)
+    local h = heard[key]
+    return h and GetTime() - h.at < 90 and h or nil
 end
 
-local function claimed(key)
-    return heard[key] and GetTime() - heard[key] < 90
+local function hear(sender, text)
+    if shortName(sender) == UnitName("player") then return end
+    local key, lang, index = text:match("^(%S+ %S+) ?(%a*) ?(%d*)")
+    if not key then return end
+    local h = recent(key) or {count = 0}
+    h.at, h.count = GetTime(), h.count + 1
+    if lang ~= "" then h[lang] = tonumber(index) end
+    heard[key] = h
 end
 
 local function say(kind, class, name, days)
     local s = settings()
     if s.off or s[kind] == false then return end
-    -- ponytail: willekeurige wachttijd van 1 tot 8 s spreidt gelijktijdige GuildBanters; posten twee binnen
-    -- dezelfde roundtrip (circa 0,5 s), dan komen er toch twee. Sluitend wordt het pas met een leider-keuze.
+    -- ponytail: willekeurige wachttijd van 1 tot 8 s spreidt gelijktijdige GuildBanters; posten er twee binnen
+    -- dezelfde roundtrip (circa 0,5 s), dan kan er één te veel komen. Sluitend wordt het pas met een leider-keuze.
     C_Timer.After(1 + math.random() * 7, function()
-        local key = kind .. " " .. name
-        if claimed(key) then return end
-        local text = line(kind, class, name, days)
+        local key, lang = kind .. " " .. name, language()
+        local h = recent(key)
+        if h and h.count >= MAX_POSTS then return end
+        local text, index = line(kind, class, name, days, h and h[lang])
         if not text then return end
-        C_ChatInfo.SendAddonMessage(PREFIX, key, "GUILD")
+        C_ChatInfo.SendAddonMessage(PREFIX, key .. " " .. lang .. " " .. index, "GUILD")
         SendChatMessage(text, "GUILD")
     end)
 end
