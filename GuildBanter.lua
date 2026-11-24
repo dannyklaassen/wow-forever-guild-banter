@@ -64,33 +64,26 @@ local function linesFor(kind, class)
 end
 
 -- Shuffle-bag per lijst: elke regel komt één keer langs voordat er een herhaling komt.
--- avoid is het regelnummer dat een andere GuildBanter al postte; geeft het nummer terug, of nil als er
--- geen andere regel is.
 local bags = {}
-local function pick(lines, avoid)
-    for _ = 1, 2 do
-        local bag = bags[lines]
-        if not bag or #bag == 0 then
-            bag = {}
-            for i = 1, #lines do bag[i] = i end
-            for i = #bag, 2, -1 do
-                local j = math.random(i)
-                bag[i], bag[j] = bag[j], bag[i]
-            end
-            bags[lines] = bag
+local function pick(lines)
+    local bag = bags[lines]
+    if not bag or #bag == 0 then
+        bag = {}
+        for i = 1, #lines do bag[i] = i end
+        for i = #bag, 2, -1 do
+            local j = math.random(i)
+            bag[i], bag[j] = bag[j], bag[i]
         end
-        for i = #bag, 1, -1 do
-            if bag[i] ~= avoid then return table.remove(bag, i) end
-        end
-        bags[lines] = nil -- alleen de vermeden regel zat nog in de zak: nieuwe zak
+        bags[lines] = bag
     end
+    return table.remove(bag)
 end
 
-local function line(kind, class, name, days, avoid)
+local function line(kind, class, name, days)
     local lines = linesFor(kind, class)
-    local index = lines and pick(lines, avoid)
+    local index = lines and pick(lines)
     if not index then return nil end
-    return (lines[index]:gsub("{name}", name):gsub("{days}", days or "")), index
+    return (lines[index]:gsub("{name}", name):gsub("{days}", days or ""))
 end
 
 local function comebackDays()
@@ -98,45 +91,13 @@ local function comebackDays()
     return days == 28 and 30 or days -- 4 weken uit 1.2 is nu 1 maand
 end
 
--- Elke GuildBanter meldt vlak voor het posten via een onzichtbaar addonbericht wat hij post, met taal en
--- regelnummer ("HI Zarnok nl 7"). Per gebeurtenis posten hoogstens twee GuildBanters, en de tweede kiest
--- een andere regel als hij dezelfde taal heeft. Wat spelers zelf typen telt niet mee. Het venster is 90 s
--- na het laatst gehoorde bericht, omdat elke client de roster op een eigen minuut-tik scant en dings dus
--- tot een minuut na elkaar ziet. 1.4.2 stuurt alleen "HI Zarnok": dat telt mee, zonder regelnummer.
-local PREFIX = "GuildBanter"
-local MAX_POSTS = 2
-C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
-local heard = {} -- "HI Zarnok" -> {at = GetTime(), count = n, [taal] = regelnummer}
-
-local function recent(key)
-    local h = heard[key]
-    return h and GetTime() - h.at < 90 and h or nil
-end
-
-local function hear(sender, text)
-    if shortName(sender) == UnitName("player") then return end
-    local key, lang, index = text:match("^(%S+ %S+) ?(%a*) ?(%d*)")
-    if not key then return end
-    local h = recent(key) or {count = 0}
-    h.at, h.count = GetTime(), h.count + 1
-    if lang ~= "" then h[lang] = tonumber(index) end
-    heard[key] = h
-end
-
+-- Post direct vanuit de game-event: WoW Forever blokkeert bij sommige clients guild-berichten vanuit C_Timer.
+-- ponytail: hebben meerdere guildies de addon, dan post ieder van hen; dat is een bewuste keuze.
 local function say(kind, class, name, days)
     local s = settings()
     if s.off or s[kind] == false then return end
-    -- ponytail: willekeurige wachttijd van 1 tot 8 s spreidt gelijktijdige GuildBanters; posten er twee binnen
-    -- dezelfde roundtrip (circa 0,5 s), dan kan er één te veel komen. Sluitend wordt het pas met een leider-keuze.
-    C_Timer.After(1 + math.random() * 7, function()
-        local key, lang = kind .. " " .. name, language()
-        local h = recent(key)
-        if h and h.count >= MAX_POSTS then return end
-        local text, index = line(kind, class, name, days, h and h[lang])
-        if not text then return end
-        C_ChatInfo.SendAddonMessage(PREFIX, key .. " " .. lang .. " " .. index, "GUILD")
-        SendChatMessage(text, "GUILD")
-    end)
+    local text = line(kind, class, name, days)
+    if text then C_ChatInfo.SendChatMessage(text, "GUILD") end
 end
 
 local function scanRoster()
@@ -168,14 +129,8 @@ end
 
 frame:RegisterEvent("CHAT_MSG_SYSTEM")
 frame:RegisterEvent("GUILD_ROSTER_UPDATE")
-frame:RegisterEvent("CHAT_MSG_ADDON")
--- Bij CHAT_MSG_ADDON is msg de prefix; bij CHAT_MSG_SYSTEM is alleen msg in gebruik.
-frame:SetScript("OnEvent", function(_, event, msg, text, channel, sender)
+frame:SetScript("OnEvent", function(_, event, msg)
     if event == "GUILD_ROSTER_UPDATE" then return scanRoster() end
-    if event == "CHAT_MSG_ADDON" then
-        if msg == PREFIX and channel == "GUILD" then hear(sender, text) end
-        return
-    end
 
     local name = msg:match(joinPattern)
     if name then
@@ -196,10 +151,7 @@ frame:SetScript("OnEvent", function(_, event, msg, text, channel, sender)
     if since then
         offlineSince[name] = nil
         local days = math.floor((time() - since) / 86400)
-        if days >= comebackDays() then
-            -- ponytail: even wachten tot ze uit het laadscherm zijn en guild chat zien
-            C_Timer.After(10, function() say("BACK", nil, name, days) end)
-        end
+        if days >= comebackDays() then say("BACK", nil, name, days) end
     end
 end)
 
