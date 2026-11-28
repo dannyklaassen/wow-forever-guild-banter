@@ -147,6 +147,9 @@ frame:RegisterEvent("CHAT_MSG_SYSTEM")
 frame:RegisterEvent("GUILD_ROSTER_UPDATE")
 frame:SetScript("OnEvent", function(_, event, msg)
     if event == "GUILD_ROSTER_UPDATE" then return scanRoster() end
+    -- ponytail: in chat lockdown (Midnight secret values, o.a. tijdens encounters) is de systeemtekst secret en
+    -- niet te lezen; joins, leaves en online-meldingen in die periode missen we. Roster-diff als dat stoort.
+    if issecretvalue and issecretvalue(msg) then return end
 
     local name = msg:match(joinPattern)
     if name then
