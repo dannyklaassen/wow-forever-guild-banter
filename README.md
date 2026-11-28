@@ -18,7 +18,7 @@ A World of Warcraft Classic addon that posts funny messages in guild chat when s
 
 - **Five languages:** English, Nederlands, Deutsch, Français and Español. You pick the language yourself, so it can differ from your game client.
 - **No repeats:** every line comes by once before any line is used again.
-- **Posted right away:** messages go out as soon as GuildBanter sees the event. If several guild members run GuildBanter, each of them posts.
+- **Posted on your next key press:** WoW only lets an addon send chat from a key press or click, so each message waits for your next key press or click in the world. Anything still waiting after 5 minutes (away from keyboard) is dropped. If several guild members run GuildBanter, each of them posts.
 - **Settings per guild:** language and options are saved per guild, so an alt in another guild can have its own settings.
 
 The messages are posted in guild chat **by your character**. Turn off anything you don't want to say yourself.

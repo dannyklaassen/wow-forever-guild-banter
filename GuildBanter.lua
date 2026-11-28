@@ -91,14 +91,30 @@ local function comebackDays()
     return days == 28 and 30 or days -- 4 weken uit 1.2 is nu 1 maand
 end
 
--- Post direct vanuit de game-event: WoW Forever blokkeert bij sommige clients guild-berichten vanuit C_Timer.
--- ponytail: hebben meerdere guildies de addon, dan post ieder van hen; dat is een bewuste keuze.
+-- WoW Forever blokkeert SendChatMessage vanuit game-events en C_Timer (taint.log: "action was blocked");
+-- alleen vanuit een toets of klik van de speler komt het door. Elk bericht wacht daarom in een rij op de
+-- eerstvolgende toetsaanslag of muisklik in de wereld.
+-- ponytail: één bericht per toets (de client staat er mogelijk maar één per hardware-event toe); wat langer
+-- dan 5 minuten wacht (afk) vervalt. Hebben meerdere guildies de addon, dan post ieder van hen; bewuste keuze.
+local queue = {}
+local function flush()
+    local item = table.remove(queue, 1)
+    while item and time() - item.at > 300 do item = table.remove(queue, 1) end
+    if item then C_ChatInfo.SendChatMessage(item.text, "GUILD") end
+end
+
 local function say(kind, class, name, days)
     local s = settings()
     if s.off or s[kind] == false then return end
     local text = line(kind, class, name, days)
-    if text then C_ChatInfo.SendChatMessage(text, "GUILD") end
+    if text then queue[#queue + 1] = {text = text, at = time()} end
 end
+
+-- Toetsen gaan gewoon door naar de game (propagate); dit frame kijkt alleen mee.
+frame:EnableKeyboard(true)
+frame:SetPropagateKeyboardInput(true)
+frame:SetScript("OnKeyDown", flush)
+WorldFrame:HookScript("OnMouseDown", flush)
 
 local function scanRoster()
     local now, me = time(), UnitName("player")
